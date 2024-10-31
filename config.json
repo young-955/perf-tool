@@ -1,0 +1,34 @@
+{
+    "services":[
+        {
+            "name": "测试任务1",
+            "url": "http://example.com/api/endpoint1",
+            "request_body": {
+                "key1": "value1",
+                "key2": "value2"
+            },
+            "headers": {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer your-token-here"
+            },
+            "num_threads": 10,
+            "num_requests": 100
+        },
+        {
+            "name": "测试任务2",
+            "url": "http://example.com/api/endpoint2",
+            "request_body": {
+                "key1": "value1",
+                "key2": "value2"
+            },
+            "headers": {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer your-token-here"
+            },
+            "num_threads": 20,
+            "num_requests": 200
+        }
+    ],
+    "concurrent_users": [1, 2, 5],
+    "requests_per_user": 100
+}
