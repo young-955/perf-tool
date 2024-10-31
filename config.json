@@ -1,8 +1,9 @@
 {
     "services":[
         {
-            "name": "测试任务1",
+            "name": "JSON测试任务",
             "url": "http://example.com/api/endpoint1",
+            "request_type": "json",
             "request_body": {
                 "key1": "value1",
                 "key2": "value2"
@@ -10,23 +11,18 @@
             "headers": {
                 "Content-Type": "application/json",
                 "Authorization": "Bearer your-token-here"
-            },
-            "num_threads": 10,
-            "num_requests": 100
+            }
         },
         {
-            "name": "测试任务2",
-            "url": "http://example.com/api/endpoint2",
-            "request_body": {
-                "key1": "value1",
-                "key2": "value2"
-            },
+            "name": "图片识别测试",
+            "url": "http://example.com/full",
+            "request_type": "image",
+            "image_path": "./1.jpg",
             "headers": {
-                "Content-Type": "application/json",
-                "Authorization": "Bearer your-token-here"
-            },
-            "num_threads": 20,
-            "num_requests": 200
+                "Authorization": "ACCESSCODE 547FA8B8AD84EC91444ECFD8CC2A0B7F",
+                "Content-Type": "image/jpeg",
+                "ocreventid": "12345"
+            }
         }
     ],
     "concurrent_users": [1, 2, 5],

@@ -11,12 +11,17 @@ from loguru import logger
 import csv
 from datetime import datetime
 from analyse_plt import analyze_results
+import io
+import cv2
+import numpy as np
 
 class LoadTester:
-    def __init__(self, name, url, request_body, headers=None, num_threads=10, num_requests=100):
+    def __init__(self, name, url, request_type, request_body=None, image_path=None, headers=None, num_threads=10, num_requests=100):
         self.name = name
         self.url = url
+        self.request_type = request_type
         self.base_request_body = request_body
+        self.image_path = image_path
         self.headers = headers if headers else {'Content-Type': 'application/json'}
         self.num_threads = num_threads
         self.num_requests = num_requests
@@ -24,6 +29,22 @@ class LoadTester:
         self.failure_count = 0
         self.response_times = []
         self.lock = threading.Lock()
+        
+        # 如果是图片请求，预先加载图片
+        if self.request_type == 'image' and self.image_path:
+            self.image_data = self.prepare_image_data(self.image_path)
+
+    def prepare_image_data(self, image_path):
+        """预处理图片数据"""
+        rgb_img = cv2.imread(image_path)
+        if rgb_img is None:
+            raise ValueError(f"无法读取图片: {image_path}")
+        return self.cv2bytes(rgb_img)
+
+    def cv2bytes(self, im):
+        """cv2转二进制图片"""
+        return io.BytesIO(cv2.imencode('.png', im)[1]).getvalue()
+
 
     def generate_bizno(self):
         """生成随机的业务编号"""
@@ -37,13 +58,24 @@ class LoadTester:
 
     def make_request(self):
         try:
-            # 为每个请求创建新的请求体，并添加bizno
-            request_body = self.base_request_body.copy()
-            request_body['bizno'] = self.generate_bizno()
+            if self.request_type == 'json':
+                # JSON请求
+                request_body = self.base_request_body.copy()
+                request_body['bizno'] = self.generate_bizno()
+                
+                start_time = time.time()
+                response = requests.post(self.url, json=request_body, headers=self.headers)
+                end_time = time.time()
+                
+                logger.info(f"bizno: {request_body['bizno']}, status: {response.status_code}")
             
-            start_time = time.time()
-            response = requests.post(self.url, json=request_body, headers=self.headers)
-            end_time = time.time()
+            else:  # image request
+                # 图片请求
+                start_time = time.time()
+                response = requests.post(self.url, headers=self.headers, data=self.image_data)
+                end_time = time.time()
+                
+                logger.info(f"Image request completed, status: {response.status_code}")
             
             with self.lock:
                 if response.status_code == 200:
@@ -52,17 +84,13 @@ class LoadTester:
                     self.failure_count += 1
                 self.response_times.append(end_time - start_time)
             
-            # 打印请求的bizno和响应状态码（可选）
-            logger.info(f"bizno: {request_body['bizno']}, status: {response.status_code}")
-            
             return response.status_code
-            
         except Exception as e:
             with self.lock:
                 self.failure_count += 1
-            logger.info(f"请求失败: {str(e)}")
+            logger.error(f"请求失败: {str(e)}")
             return None
-
+        
     def run_load_test(self):
         logger.info(f"开始压力测试...")
         logger.info(f"目标 URL: {self.url}")
@@ -133,7 +161,7 @@ def save_comparison_results_to_csv(all_results):
     
     # 准备CSV数据
     headers = ['服务名称', '并发用户数', '总请求数', '总耗时(秒)', '成功请求数', '失败请求数', 
-              '平均响应时间(秒)', '最大响应时间(秒)', '最小响应时间(秒)', 'QPS', 'TPS']
+              '平均响应时间(秒)', '最大响应时间(秒)', '最小响应时间(秒)', 'QPS']
     
     with open(filename, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
@@ -150,8 +178,7 @@ def save_comparison_results_to_csv(all_results):
                 result['平均响应时间(秒)'],
                 result['最大响应时间(秒)'],
                 result['最小响应时间(秒)'],
-                result['QPS'],
-                result['TPS']
+                result['QPS']
             ])
     
     logger.info(f"对比测试结果已保存到文件: {filename}")
@@ -178,7 +205,9 @@ def main():
             tester = LoadTester(
                 name=service['name'],
                 url=service['url'],
-                request_body=service['request_body'],
+                request_type=service.get('request_type', 'json'),
+                request_body=service.get('request_body'),
+                image_path=service.get('image_path'),
                 headers=service.get('headers'),
                 num_threads=concurrent_users,
                 num_requests=concurrent_users * config['requests_per_user']
@@ -188,6 +217,7 @@ def main():
             results['服务名称'] = service['name']
             results['并发用户数'] = concurrent_users
             results['总请求数'] = concurrent_users * config['requests_per_user']
+            results['请求类型'] = service.get('request_type', 'json')
             
             all_results.append(results)
             
@@ -196,7 +226,6 @@ def main():
     
     # 保存对比结果
     filename = save_comparison_results_to_csv(all_results)
-
     analyze_results(filename)
 
 if __name__ == "__main__":
