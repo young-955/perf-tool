@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>性能测试工具</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>性能测试工具</h1>
+        
+        <!-- 测试配置部分 -->
+        <div class="test-config">
+            <h3>测试配置</h3>
+            <label>并发用户数（用逗号分隔）：</label>
+            <input type="text" id="concurrent_users" value="1,5,10,20">
+            <br>
+            <label>每用户请求数：</label>
+            <input type="number" id="requests_per_user" value="10">
+        </div>
+
+        <!-- 服务配置部分 -->
+        <div class="services-section">
+            <h3>服务配置</h3>
+            <div id="services">
+                <!-- 初始的服务配置表单 -->
+                <div class="service-config">
+                    <label>服务名称：</label>
+                    <input type="text" class="service-name">
+                    <br>
+                    <label>服务URL：</label>
+                    <input type="text" class="service-url">
+                    <br>
+                    <label>请求类型：</label>
+                    <select class="request-type">
+                        <option value="json">JSON</option>
+                        <option value="image">图片</option>
+                    </select>
+                    <br>
+                    <div class="json-config">
+                        <label>请求体（JSON）：</label>
+                        <textarea class="request-body">{"key1": "value1", "key2": "value2"}</textarea>
+                    </div>
+                    <div class="image-config" style="display:none;">
+                        <label>图片文件：</label>
+                        <input type="file" class="image-file" accept="image/*">
+                    </div>
+                    <br>
+                    <label>请求头：</label>
+                    <textarea class="headers">{"Content-Type": "application/json"}</textarea>
+                </div>
+            </div>
+            
+            <!-- 添加服务按钮 -->
+            <button onclick="addService()" class="add-service-btn">添加服务</button>
+        </div>
+
+        <!-- 服务概要 -->
+        <div id="service-summary" style="display:none;">
+            <h3>服务概要</h3>
+            <ul id="service-summary-list"></ul>
+        </div>
+
+        <!-- 开始测试按钮 -->
+        <button onclick="startTest()" id="startTestBtn">开始测试</button>
+
+        <!-- 测试状态 -->
+        <div id="status" style="display:none;">
+            <h3>测试状态</h3>
+            <div class="progress">
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
+            <p id="statusText"></p>
+        </div>
+
+        <!-- 测试结果 -->
+        <div id="results" style="display:none;">
+            <h3>测试结果</h3>
+            <canvas id="qpsChart"></canvas>
+            <canvas id="responseTimeChart"></canvas>
+            <button onclick="downloadResults()">下载详细结果</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
