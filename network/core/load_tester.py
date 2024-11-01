@@ -1,3 +1,4 @@
+import os
 import requests
 import time
 import threading
@@ -157,7 +158,7 @@ def load_config(config_file):
 
 def save_comparison_results_to_csv(all_results):
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename = f"performance_comparison_{timestamp}.csv"
+    filename = os.path.join('results', f"performance_comparison_{timestamp}.csv")
     
     # 准备CSV数据
     headers = ['服务名称', '并发用户数', '总请求数', '总耗时(秒)', '成功请求数', '失败请求数', 

@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -29,5 +30,5 @@ def analyze_results(csv_file):
     plt.legend()
     
     plt.tight_layout()
-    plt.savefig('performance_comparison.png')
+    plt.savefig(os.path.join('results', 'performance_comparison.png'))
     plt.close()
