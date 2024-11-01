@@ -25,33 +25,37 @@ pip install -r requirements.txt
 
 ```json
 {
-"services": [
-{
-"name": "JSON测试任务",
-"url": "http://example.com/api/endpoint1",
-"request_type": "json",
-"request_body": {
-"key1": "value1",
-"key2": "value2"
-},
-"headers": {
-"Content-Type": "application/json",
-"Authorization": "Bearer your-token-here"
-}
-},
-{
-"name": "图片识别测试",
-"url": "http://example.com/api/endpoint2",
-"request_type": "image",
-"image_path": "./test.jpg",
-"headers": {
-"Content-Type": "image/jpeg",
-"Authorization": "Bearer your-token-here"
-}
-}
-],
-"concurrent_users": [1, 2, 5],
-"requests_per_user": 100
+    "services": [
+        {
+            "name": "JSON测试任务",
+            "url": "http://example.com/api/endpoint1",
+            "request_type": "json",
+            "request_body": {
+                "key1": "value1",
+                "key2": "value2"
+            },
+            "headers": {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer your-token-here"
+            }
+        },
+        {
+            "name": "图片识别测试",
+            "url": "http://example.com/api/endpoint2",
+            "request_type": "image",
+            "image_path": "./test.jpg",
+            "headers": {
+                "Content-Type": "image/jpeg",
+                "Authorization": "Bearer your-token-here"
+            }
+        }
+    ],
+    "concurrent_users": [
+        1,
+        2,
+        5
+    ],
+    "requests_per_user": 100
 }
 ```
 
