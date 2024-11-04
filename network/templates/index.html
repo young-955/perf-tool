@@ -11,8 +11,23 @@
         <!-- 测试配置部分 -->
         <div class="test-config">
             <h3>测试配置</h3>
-            <label>并发用户数（用逗号分隔）：</label>
-            <input type="text" id="concurrent_users" value="1,5,10,20">
+            <div class="concurrent-users-config">
+                <label>选择并发用户数：</label>
+                <div class="concurrent-select">
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" class="concurrent-checkbox" value="1"> 1</label>
+                        <label><input type="checkbox" class="concurrent-checkbox" value="2"> 2</label>
+                        <label><input type="checkbox" class="concurrent-checkbox" value="3"> 3</label>
+                        <label><input type="checkbox" class="concurrent-checkbox" value="5"> 5</label>
+                        <label><input type="checkbox" class="concurrent-checkbox" value="10"> 10</label>
+                        <label><input type="checkbox" class="concurrent-checkbox" value="20"> 20</label>
+                    </div>
+                    <div class="custom-concurrent">
+                        <input type="number" id="custom-concurrent" placeholder="自定义并发数">
+                        <button onclick="addCustomConcurrent()">添加</button>
+                    </div>
+                </div>
+            </div>
             <br>
             <label>每用户请求数：</label>
             <input type="number" id="requests_per_user" value="10">
@@ -25,10 +40,10 @@
                 <!-- 初始的服务配置表单 -->
                 <div class="service-config">
                     <label>服务名称：</label>
-                    <input type="text" class="service-name">
+                    <input type="text" class="service-name" value="test">
                     <br>
                     <label>服务URL：</label>
-                    <input type="text" class="service-url">
+                    <input type="text" class="service-url" value="http://0.0.0.0:8000/api/v1/test">
                     <br>
                     <label>请求类型：</label>
                     <select class="request-type">
@@ -75,8 +90,16 @@
         <!-- 测试结果 -->
         <div id="results" style="display:none;">
             <h3>测试结果</h3>
-            <canvas id="qpsChart"></canvas>
-            <canvas id="responseTimeChart"></canvas>
+            <div class="charts-container">
+                <!-- QPS图表 -->
+                <div class="chart-box">
+                    <img id="qpsChart" src="" alt="QPS对比图表">
+                </div>
+                <!-- 响应时间图表 -->
+                <div class="chart-box">
+                    <img id="responseTimeChart" src="" alt="响应时间对比图表">
+                </div>
+            </div>
             <button onclick="downloadResults()">下载详细结果</button>
         </div>
     </div>
