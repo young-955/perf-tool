@@ -296,10 +296,10 @@ function displayResults(results) {
     const responseTimeChart = document.getElementById('responseTimeChart');
     
     if (results.qps_plot_url) {
-        qpsChart.src = results.qps_plot_url;
+        // 添加时间戳参数来防止缓存
+        qpsChart.src = `${results.qps_plot_url}?t=${new Date().getTime()}`;
         qpsChart.style.display = 'block';
         
-        // 添加错误处理
         qpsChart.onerror = function() {
             console.error('Failed to load QPS chart');
             this.style.display = 'none';
@@ -307,10 +307,10 @@ function displayResults(results) {
     }
     
     if (results.response_plot_url) {
-        responseTimeChart.src = results.response_plot_url;
+        // 添加时间戳参数来防止缓存
+        responseTimeChart.src = `${results.response_plot_url}?t=${new Date().getTime()}`;
         responseTimeChart.style.display = 'block';
         
-        // 添加错误处理
         responseTimeChart.onerror = function() {
             console.error('Failed to load Response Time chart');
             this.style.display = 'none';
