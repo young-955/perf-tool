@@ -27,7 +27,10 @@ def serve_results(filename):
     results_dir = os.path.join(os.path.dirname(__file__), 'results')  # 修改为正确的结果目录路径
     logger.info(f"Serving results file: {filename} from {results_dir}")
     try:
-        return send_from_directory(results_dir, filename)
+        response = send_from_directory(results_dir, filename)
+        # 设置正确的 MIME 类型和字符编码
+        response.headers['Content-Type'] = 'image/png; charset=utf-8'
+        return response
     except Exception as e:
         logger.error(f"Error serving file {filename}: {str(e)}")
         return jsonify({'error': 'File not found'}), 404
@@ -35,7 +38,11 @@ def serve_results(filename):
 @app.route('/api/test', methods=['POST'])
 def run_test():
     try:
-        config = request.json
+        # 从 FormData 中获取配置
+        if 'config' not in request.form:
+            return jsonify({'error': '缺少配置信息'}), 400
+            
+        config = json.loads(request.form['config'])
         
         # 基本验证
         if not config.get('services'):
@@ -44,15 +51,15 @@ def run_test():
         # 处理上传的图片
         for service in config['services']:
             if service.get('request_type') == 'image' and service.get('image_path'):
-                # 获取图片文件名而不是整个字典
-                image_path = service['image_path']
-                if isinstance(image_path, str):  # 确保是字符串
-                    file = request.files.get(image_path)
-                    if file:
-                        filename = secure_filename(file.filename)
-                        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                        file.save(filepath)
-                        service['image_path'] = filepath
+                # 获取对应的文件
+                file = request.files.get(service['image_path'])
+                if file:
+                    filename = secure_filename(file.filename)
+                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    file.save(filepath)
+                    service['image_path'] = filepath
+                else:
+                    return jsonify({'error': f'未找到图片文件: {service["image_path"]}'}), 400
 
         # 运行测试
         results = run_load_tests(config)
@@ -161,4 +168,4 @@ def get_latest_result_file():
     return os.path.join(results_dir, latest_file)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(host="0.0.0.0", debug=True, port=5000)

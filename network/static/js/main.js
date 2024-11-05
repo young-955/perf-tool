@@ -80,34 +80,38 @@ function addCustomConcurrent() {
     customInput.value = '';
 }
 
-function addService() {
+function addService(savedConfig = null) {
     serviceCount++;
     const servicesDiv = document.getElementById('services');
     const originalService = document.querySelector('.service-config');
     const newService = originalService.cloneNode(true);
     
-    // 清空新服务的输入值
-    newService.querySelector('.service-name').value = '';
-    newService.querySelector('.service-url').value = '';
-    
-    // 重置请求类型为 JSON
-    const requestTypeSelect = newService.querySelector('.request-type');
-    requestTypeSelect.value = 'json';
-    
-    // 重置并显示 JSON 配置，隐藏图片配置
-    const jsonConfig = newService.querySelector('.json-config');
-    const imageConfig = newService.querySelector('.image-config');
-    jsonConfig.style.display = 'block';
-    imageConfig.style.display = 'none';
-    
-    // 重置 JSON 请求体
-    newService.querySelector('.request-body').value = '{"key1": "value1", "key2": "value2"}';
-    // 重置请求头
-    newService.querySelector('.headers').value = '{"Content-Type": "application/json"}';
-    
-    // 清空图片文件输入
-    const imageFileInput = newService.querySelector('.image-file');
-    imageFileInput.value = '';
+    if (savedConfig) {
+        // 使用保存的配置填充表单
+        newService.querySelector('.service-name').value = savedConfig.name || '';
+        newService.querySelector('.service-url').value = savedConfig.url || '';
+        newService.querySelector('.request-type').value = savedConfig.request_type || 'json';
+        
+        if (savedConfig.request_type === 'json') {
+            newService.querySelector('.request-body').value = 
+                JSON.stringify(savedConfig.request_body || {}, null, 2);
+            newService.querySelector('.json-config').style.display = 'block';
+            newService.querySelector('.image-config').style.display = 'none';
+        } else {
+            newService.querySelector('.json-config').style.display = 'none';
+            newService.querySelector('.image-config').style.display = 'block';
+        }
+        
+        newService.querySelector('.headers').value = 
+            JSON.stringify(savedConfig.headers || {}, null, 2);
+    } else {
+        // 使用默认值
+        newService.querySelector('.service-name').value = '';
+        newService.querySelector('.service-url').value = '';
+        newService.querySelector('.request-type').value = 'json';
+        newService.querySelector('.request-body').value = '{"key1": "value1", "key2": "value2"}';
+        newService.querySelector('.headers').value = '{"Content-Type": "application/json"}';
+    }
     
     // 添加删除按钮
     const removeButton = document.createElement('button');
@@ -120,6 +124,7 @@ function addService() {
     newService.appendChild(removeButton);
     
     // 添加事件监听器
+    const requestTypeSelect = newService.querySelector('.request-type');
     requestTypeSelect.addEventListener('change', function(e) {
         toggleRequestConfig(e.target);
     });
@@ -160,6 +165,9 @@ async function startTest() {
         // 获取配置
         const config = getConfig();
         
+        // 保存配置到 cookie
+        saveConfigToCookie(config);
+        
         // 验证配置
         if (!config || config.services.length === 0) {
             alert('请至少添加一个服务');
@@ -178,6 +186,20 @@ async function startTest() {
             }
         }
         
+        // 隐藏上次的测试结果
+        const resultsDiv = document.getElementById('results');
+        if (resultsDiv) {
+            resultsDiv.style.display = 'none';
+        }
+        
+        // 销毁上次的图表实例
+        if (qpsChartInstance) {
+            qpsChartInstance.destroy();
+        }
+        if (responseTimeChartInstance) {
+            responseTimeChartInstance.destroy();
+        }
+        
         // 显示状态区域
         const status = document.getElementById('status');
         const statusText = document.getElementById('statusText');
@@ -192,12 +214,21 @@ async function startTest() {
             statusText.textContent = '正在执行测试...';
             progressBar.style.width = '50%';
 
+            const formData = new FormData();
+            
+            // 处理图片文件
+            config.services.forEach((service, index) => {
+                if (service.request_type === 'image' && service.image_path) {
+                    formData.append(`image_${index}`, service.image_path);
+                    service.image_path = `image_${index}`;
+                }
+            });
+            
+            formData.append('config', JSON.stringify(config));
+
             const response = await fetch('/api/test', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(config)
+                body: formData
             });
             
             if (!response.ok) {
@@ -221,7 +252,6 @@ async function startTest() {
         }
     } catch (error) {
         alert(error.message);
-        return;
     }
 }
 
@@ -427,19 +457,11 @@ function downloadResults() {
         });
 }
 
-// 初始化
+// 修改现有的 DOMContentLoaded 事件监听器
 document.addEventListener('DOMContentLoaded', function() {
-    // 为初始的服务配置添加请求类型变更监听器
-    document.querySelector('.request-type').addEventListener('change', function(e) {
-        toggleRequestConfig(e.target);
-    });
+    // 加载上次保存的配置
+    loadLastConfig();
     
-    // 更新服务概要
-    updateServiceSummary();
-});
-
-// 在页面加载完成时初始化
-document.addEventListener('DOMContentLoaded', function() {
     // 默认选中一些并发数
     document.querySelectorAll('.concurrent-checkbox').forEach(checkbox => {
         if (['1', '5', '10'].includes(checkbox.value)) {
@@ -455,3 +477,70 @@ document.addEventListener('DOMContentLoaded', function() {
     // 更新服务概要
     updateServiceSummary();
 });
+
+// Cookie 操作函数
+function saveConfigToCookie(config) {
+    const configStr = JSON.stringify(config);
+    document.cookie = `lastConfig=${encodeURIComponent(configStr)};path=/;max-age=604800`; // 保存7天
+}
+
+function getConfigFromCookie() {
+    const cookies = document.cookie.split(';');
+    const configCookie = cookies.find(cookie => cookie.trim().startsWith('lastConfig='));
+    if (configCookie) {
+        try {
+            return JSON.parse(decodeURIComponent(configCookie.split('=')[1]));
+        } catch (e) {
+            console.error('解析配置cookie失败:', e);
+            return null;
+        }
+    }
+    return null;
+}
+
+function loadLastConfig() {
+    const lastConfig = getConfigFromCookie();
+    if (!lastConfig) return;
+
+    // 获取第一个服务配置组件
+    const firstService = document.querySelector('.service-config');
+    if (!firstService) return;
+
+    // 使用第一个配置更新初始服务
+    if (lastConfig.services.length > 0) {
+        const firstConfig = lastConfig.services[0];
+        // 更新第一个服务的值
+        firstService.querySelector('.service-name').value = firstConfig.name || '';
+        firstService.querySelector('.service-url').value = firstConfig.url || '';
+        firstService.querySelector('.request-type').value = firstConfig.request_type || 'json';
+        
+        if (firstConfig.request_type === 'json') {
+            firstService.querySelector('.request-body').value = 
+                JSON.stringify(firstConfig.request_body || {}, null, 2);
+            firstService.querySelector('.json-config').style.display = 'block';
+            firstService.querySelector('.image-config').style.display = 'none';
+        } else {
+            firstService.querySelector('.json-config').style.display = 'none';
+            firstService.querySelector('.image-config').style.display = 'block';
+        }
+        
+        firstService.querySelector('.headers').value = 
+            JSON.stringify(firstConfig.headers || {}, null, 2);
+    }
+
+    // 添加其他服务配置
+    for (let i = 1; i < lastConfig.services.length; i++) {
+        addService(lastConfig.services[i]);
+    }
+
+    // 设置并发用户数
+    document.querySelectorAll('.concurrent-checkbox').forEach(checkbox => {
+        checkbox.checked = lastConfig.concurrent_users.includes(parseInt(checkbox.value));
+    });
+
+    // 设置每用户请求数
+    document.getElementById('requests_per_user').value = lastConfig.requests_per_user;
+
+    // 更新服务概要
+    updateServiceSummary();
+}
