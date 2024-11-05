@@ -76,12 +76,14 @@ def download_results():
 
 def run_load_tests(config):
     all_results = []
+    service_results_list = []
     
     # 对每个服务进行测试
     for service in config['services']:
         logger.info(f"\n开始测试服务: {service['name']}")
         
-        service_results = []
+        service_results = []  # 存储当前服务的所有测试结果
+        
         # 对每个并发用户数进行测试
         for concurrent_users in config['concurrent_users']:
             logger.info(f"\n并发用户数: {concurrent_users}")
@@ -107,25 +109,25 @@ def run_load_tests(config):
             results['总请求数'] = concurrent_users * config['requests_per_user']
             
             service_results.append(results)
-            all_results.append(results)  # 添加到总结果列表中
+            all_results.append(results)
             
             # 每个测试之间暂停一段时间
             time.sleep(2)
-            
-        # 将服务结果添加到结果列表
-        service_results = {
+        
+        # 将当前服务的结果添加到列表中
+        service_results_list.append({
             'name': service['name'],
             'results': service_results
-        }
+        })
     
-    # 使用已有方法保存结果并生成图表
+    # 保存结果并生成图表
     filename = save_comparison_results_to_csv(all_results)
     qps_path, response_path = analyze_results(filename)
     
-    # 修改返回的URL格式，使用相对路径
-    formatted_results = format_results([service_results], config['concurrent_users'])
-    formatted_results['qps_plot_url'] = f'/results/qps_comparison.png'
-    formatted_results['response_plot_url'] = f'/results/response_time_comparison.png'
+    # 使用完整的服务结果列表
+    formatted_results = format_results(service_results_list, config['concurrent_users'])
+    formatted_results['qps_plot_url'] = '/results/qps_comparison.png'
+    formatted_results['response_plot_url'] = '/results/response_time_comparison.png'
     
     return formatted_results
 

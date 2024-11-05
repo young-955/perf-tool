@@ -8,7 +8,15 @@ from loguru import logger
 # 修改字体设置
 try:
     # 尝试使用系统默认中文字体
-    matplotlib.rcParams['font.sans-serif'] = ['Microsoft YaHei', 'SimHei', 'Arial Unicode MS']
+    matplotlib.rcParams['font.sans-serif'] = [
+        'WenQuanYi Micro Hei',  # 文泉驿微米黑
+        'WenQuanYi Zen Hei',    # 文泉驿正黑
+        'Noto Sans CJK SC',     # Google Noto 字体
+        'Droid Sans Fallback',  # Android 默认字体
+        'Microsoft YaHei',      # Windows 微软雅黑
+        'SimHei',              # Windows 中文黑体
+        'Arial Unicode MS'      # 通用 Unicode 字体
+    ]
 except:
     # 如果没有合适的中文字体，使用默认字体
     logger.warning("未找到合适的中文字体，将使用系统默认字体")

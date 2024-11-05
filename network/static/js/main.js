@@ -2,6 +2,40 @@ let serviceCount = 0;
 let qpsChartInstance = null;
 let responseTimeChartInstance = null;
 
+function getConfig() {
+    const services = [];
+    document.querySelectorAll('.service-config').forEach(serviceElement => {
+        const service = {
+            name: serviceElement.querySelector('.service-name').value,
+            url: serviceElement.querySelector('.service-url').value,
+            request_type: serviceElement.querySelector('.request-type').value,
+            headers: JSON.parse(serviceElement.querySelector('.headers').value)
+        };
+        
+        if (service.request_type === 'json') {
+            service.request_body = JSON.parse(serviceElement.querySelector('.request-body').value);
+        } else {
+            const imageFile = serviceElement.querySelector('.image-file').files[0];
+            if (imageFile) {
+                service.image_path = imageFile;
+            }
+        }
+        
+        services.push(service);
+    });
+
+    const concurrentUsers = getConcurrentUsers();
+    if (concurrentUsers.length === 0) {
+        throw new Error('请至少选择一个并发用户数');
+    }
+    
+    return {
+        services: services,
+        concurrent_users: concurrentUsers,
+        requests_per_user: parseInt(document.getElementById('requests_per_user').value)
+    };
+}
+
 // 添加获取并发用户数的新方法
 function getConcurrentUsers() {
     const checkedValues = Array.from(document.querySelectorAll('.concurrent-checkbox:checked'))
@@ -123,15 +157,16 @@ function updateServiceSummary() {
 
 async function startTest() {
     try {
+        // 获取配置
         const config = getConfig();
         
         // 验证配置
-        if (config.services.length === 0) {
+        if (!config || config.services.length === 0) {
             alert('请至少添加一个服务');
             return;
         }
         
-        if (config.concurrent_users.length === 0) {
+        if (!config.concurrent_users || config.concurrent_users.length === 0) {
             alert('请至少选择一个并发用户数');
             return;
         }
@@ -142,54 +177,53 @@ async function startTest() {
                 return;
             }
         }
+        
+        // 显示状态区域
+        const status = document.getElementById('status');
+        const statusText = document.getElementById('statusText');
+        const progressBar = document.getElementById('progressBar');
+        const startButton = document.getElementById('startTestBtn');
+        
+        status.style.display = 'block';
+        startButton.disabled = true;
+        
+        try {
+            // 更新状态
+            statusText.textContent = '正在执行测试...';
+            progressBar.style.width = '50%';
+
+            const response = await fetch('/api/test', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(config)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const results = await response.json();
+            
+            // 更新状态
+            statusText.textContent = '测试完成！';
+            progressBar.style.width = '100%';
+            
+            // 显示结果
+            displayResults(results);
+        } catch (error) {
+            statusText.textContent = '测试失败：' + error.message;
+            progressBar.style.width = '0%';
+            alert('测试执行失败：' + error.message);
+        } finally {
+            startButton.disabled = false;
+        }
     } catch (error) {
         alert(error.message);
         return;
     }
-    
-    // 显示状态区域
-    const status = document.getElementById('status');
-    const statusText = document.getElementById('statusText');
-    const progressBar = document.getElementById('progressBar');
-    const startButton = document.getElementById('startTestBtn');
-    
-    status.style.display = 'block';
-    startButton.disabled = true;
-    
-    try {
-        // 更新状态
-        statusText.textContent = '正在执行测试...';
-        progressBar.style.width = '50%';
-
-        const response = await fetch('/api/test', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(config)
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const results = await response.json();
-        
-        // 更新状态
-        statusText.textContent = '测试完成！';
-        progressBar.style.width = '100%';
-        
-        // 显示结果
-        displayResults(results);
-    } catch (error) {
-        statusText.textContent = '测试失败：' + error.message;
-        progressBar.style.width = '0%';
-        alert('测试执行失败：' + error.message);
-    } finally {
-        startButton.disabled = false;
-    }
 }
-
 
 function toggleRequestConfig(select) {
     const serviceConfig = select.closest('.service-config');
@@ -203,40 +237,6 @@ function toggleRequestConfig(select) {
         jsonConfig.style.display = 'none';
         imageConfig.style.display = 'block';
     }
-}
-
-function getConfig() {
-    const services = [];
-    document.querySelectorAll('.service-config').forEach(serviceElement => {
-        const service = {
-            name: serviceElement.querySelector('.service-name').value,
-            url: serviceElement.querySelector('.service-url').value,
-            request_type: serviceElement.querySelector('.request-type').value,
-            headers: JSON.parse(serviceElement.querySelector('.headers').value)
-        };
-        
-        if (service.request_type === 'json') {
-            service.request_body = JSON.parse(serviceElement.querySelector('.request-body').value);
-        } else {
-            const imageFile = serviceElement.querySelector('.image-file').files[0];
-            if (imageFile) {
-                service.image_path = imageFile;
-            }
-        }
-        
-        services.push(service);
-    });
-
-    const concurrentUsers = getConcurrentUsers();
-    if (concurrentUsers.length === 0) {
-        throw new Error('请至少选择一个并发用户数');
-    }
-    
-    return {
-        services: services,
-        concurrent_users: concurrentUsers,
-        requests_per_user: parseInt(document.getElementById('requests_per_user').value)
-    };
 }
 
 function destroyCharts() {

@@ -30,11 +30,16 @@ class LoadTester:
         self.failure_count = 0
         self.response_times = []
         self.lock = threading.Lock()
+        self.image_data = None  # 初始化 image_data 属性
         
         # 如果是图片请求，预先加载图片
         if self.request_type == 'image' and self.image_path:
-            self.image_data = self.prepare_image_data(self.image_path)
-
+            try:
+                self.image_data = self.prepare_image_data(self.image_path)
+            except Exception as e:
+                logger.error(f"加载图片失败: {str(e)}")
+                raise
+        
     def prepare_image_data(self, image_path):
         """预处理图片数据"""
         rgb_img = cv2.imread(image_path)
