@@ -48,6 +48,13 @@ function getConcurrentUsers() {
 function addCustomConcurrent() {
     const customInput = document.getElementById('custom-concurrent');
     const value = parseInt(customInput.value);
+
+    // 添加合理的上限检查
+    const MAX_CONCURRENT = 1000;
+    if (value > MAX_CONCURRENT) {
+        alert(`并发数不能超过 ${MAX_CONCURRENT}`);
+        return;
+    }
     
     if (isNaN(value) || value <= 0) {
         alert('请输入有效的并发数（大于0的整数）');
