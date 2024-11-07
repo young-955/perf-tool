@@ -552,3 +552,33 @@ function loadLastConfig() {
     // 更新服务概要
     updateServiceSummary();
 }
+
+function downloadErrorRecords() {
+    fetch('/api/download-errors')
+        .then(response => {
+            if (!response.ok) {
+                if (response.status === 404) {
+                    alert('没有错误记录文件');
+                    return;
+                }
+                throw new Error('下载失败');
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            if (blob) {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'error_records.json';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            }
+        })
+        .catch(error => {
+            console.error('下载失败:', error);
+            alert('下载失败: ' + error.message);
+        });
+}

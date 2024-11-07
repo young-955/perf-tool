@@ -51,6 +51,54 @@ def serve_results(filename):
         logger.error(f"Error serving file {filename}: {str(e)}")
         return jsonify({'error': 'File not found'}), 404
 
+@app.route('/api/download-errors')
+def download_errors():
+    try:
+        session_id = session.get('test_session_id')
+        test_session = session_manager.get_session(session_id)
+        if not test_session:
+            return jsonify({'error': '会话已过期'}), 401
+        
+        error_files = session.get('error_files', [])
+        if not error_files:
+            return jsonify({'error': '没有错误记录文件'}), 404
+        
+        # 如果有多个错误文件，创建一个压缩文件
+        if len(error_files) > 1:
+            import zipfile
+            zip_filename = f"error_records_{int(time.time())}.zip"
+            zip_filepath = os.path.join(test_session.results_dir, zip_filename)
+            
+            with zipfile.ZipFile(zip_filepath, 'w') as zipf:
+                for error_file in error_files:
+                    file_path = os.path.join(test_session.results_dir, error_file)
+                    if os.path.exists(file_path):
+                        zipf.write(file_path, error_file)
+            
+            return send_file(
+                zip_filepath,
+                as_attachment=True,
+                download_name=zip_filename,
+                mimetype='application/zip'
+            )
+        else:
+            # 只有一个错误文件时直接返回
+            error_file = error_files[0]
+            file_path = os.path.join(test_session.results_dir, error_file)
+            if os.path.exists(file_path):
+                return send_file(
+                    file_path,
+                    as_attachment=True,
+                    download_name=error_file,
+                    mimetype='application/json'
+                )
+            else:
+                return jsonify({'error': '错误记录文件不存在'}), 404
+                
+    except Exception as e:
+        logger.error(f"下载错误记录失败: {str(e)}")
+        return jsonify({'error': '下载错误记录失败'}), 500
+    
 @app.route('/api/test', methods=['POST'])
 def run_test():
     try:
@@ -107,6 +155,7 @@ def download_results():
 def run_load_tests(config):
     all_results = []
     service_results_list = []
+    error_files = []  # 用于收集所有错误文件
     
     # 对每个服务进行测试
     for service in config['services']:
@@ -127,11 +176,19 @@ def run_load_tests(config):
                 image_path=service.get('image_path'),
                 headers=service.get('headers'),
                 num_threads=concurrent_users,
-                num_requests=concurrent_users * config['requests_per_user']
+                num_requests=concurrent_users * config['requests_per_user'],
+                session_dir=config['session_dir']
             )
             
             # 运行测试并获取结果
             results = tester.run_load_test()
+            
+            # 如果有错误文件，添加到列表中
+            if results.get('error_file'):
+                error_files.append(results['error_file'])
+                
+            # 从结果中移除错误文件路径（不需要返回给前端）
+            results.pop('error_file', None)
             
             # 添加额外信息到结果中
             results['服务名称'] = service['name']
@@ -149,6 +206,9 @@ def run_load_tests(config):
             'name': service['name'],
             'results': service_results
         })
+    
+    # 将错误文件列表保存到会话中
+    session['error_files'] = error_files
     
     # 保存结果并生成图表
     filename = save_comparison_results_to_csv(all_results)
@@ -190,6 +250,23 @@ def get_latest_result_file():
     latest_file = max(files, key=lambda x: os.path.getctime(os.path.join(results_dir, x)))
     return os.path.join(results_dir, latest_file)
 
+def clear_results_directory():
+    """清空 results 目录下的所有文件"""
+    results_dir = os.path.join(os.path.dirname(__file__), 'results')
+    if os.path.exists(results_dir):
+        for filename in os.listdir(results_dir):
+            file_path = os.path.join(results_dir, filename)
+            try:
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    import shutil
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                logger.error(f"删除文件失败 {file_path}: {str(e)}")
+    logger.info("已清空 results 目录")
+
 if __name__ == '__main__':
     ensure_directories()
-    app.run(host="0.0.0.0", debug=True, port=5000)
+    clear_results_directory()
+    app.run(host="0.0.0.0", debug=True, port=31008)

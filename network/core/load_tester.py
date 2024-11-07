@@ -18,6 +18,10 @@ import numpy as np
 
 class LoadTester:
     def __init__(self, name, url, request_type, request_body, headers, num_threads, num_requests, session_dir=None, image_path=None):
+        if session_dir is None:
+            session_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'results')
+            os.makedirs(session_dir, exist_ok=True)
+        
         self.session_dir = session_dir
         self.name = name
         self.url = url
@@ -32,6 +36,8 @@ class LoadTester:
         self.response_times = []
         self.lock = threading.Lock()
         self.image_data = None
+        self.error_records = []  # 添加错误记录列表
+        self.error_lock = threading.Lock()  # 添加错误记录的锁
 
         # 如果是图片请求，预先加载图片
         if self.request_type == 'image' and self.image_path:
@@ -41,6 +47,33 @@ class LoadTester:
                 logger.error(f"加载图片失败: {str(e)}")
                 raise
         
+    def record_error(self, status_code, error_response, request_info):
+        """记录错误信息"""
+        with self.error_lock:
+            self.error_records.append({
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'status_code': status_code,
+                'error_response': error_response,
+                'request_info': request_info
+            })
+
+    def save_error_records(self):
+        """保存错误记录到文件"""
+        if not self.error_records:
+            return None
+            
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"error_records_{timestamp}.json"
+        filepath = os.path.join(self.session_dir, filename)
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump({
+                'service_name': self.name,
+                'errors': self.error_records
+            }, f, ensure_ascii=False, indent=2)
+        
+        return filename
+    
     def prepare_image_data(self, image_path):
         """预处理图片数据"""
         rgb_img = cv2.imread(image_path)
@@ -64,11 +97,17 @@ class LoadTester:
         return f"BIZ{timestamp}{random_str}"
 
     def make_request(self):
+        request_info = {
+                'url': self.url,
+                'headers': self.headers
+            }
+        
         try:
             if self.request_type == 'json':
                 # JSON请求
                 request_body = self.base_request_body.copy()
                 request_body['bizno'] = self.generate_bizno()
+                request_info['body'] = request_body
                 
                 start_time = time.time()
                 response = requests.post(self.url, json=request_body, headers=self.headers)
@@ -77,6 +116,7 @@ class LoadTester:
                 logger.info(f"bizno: {request_body['bizno']}, status: {response.status_code}")
             
             else:  # image request
+                request_info['type'] = 'image'
                 # 图片请求
                 start_time = time.time()
                 response = requests.post(self.url, headers=self.headers, data=self.image_data)
@@ -84,17 +124,26 @@ class LoadTester:
                 
                 logger.info(f"Image request completed, status: {response.status_code}")
             
+            # 记录响应时间
+            response_time = end_time - start_time
             with self.lock:
+                self.response_times.append(response_time)
+                
                 if response.status_code == 200:
                     self.success_count += 1
                 else:
                     self.failure_count += 1
-                self.response_times.append(end_time - start_time)
+                    try:
+                        error_response = response.json()
+                    except:
+                        error_response = response.text
+                    self.record_error(response.status_code, error_response, request_info)
             
             return response.status_code
         except Exception as e:
             with self.lock:
                 self.failure_count += 1
+            self.record_error(0, str(e), request_info)
             logger.error(f"请求失败: {str(e)}")
             return None
         
@@ -121,6 +170,11 @@ class LoadTester:
         min_response_time = min(self.response_times) if self.response_times else 0
         qps = self.num_requests / total_time if total_time > 0 else 0
         
+        # 保存错误记录
+        error_file = None
+        if self.error_records:
+            error_file = self.save_error_records()
+        
         # 准备测试结果数据
         test_results = {
             "总耗时(秒)": f"{total_time:.2f}",
@@ -129,7 +183,8 @@ class LoadTester:
             "平均响应时间(秒)": f"{avg_response_time:.3f}",
             "最大响应时间(秒)": f"{max_response_time:.3f}",
             "最小响应时间(秒)": f"{min_response_time:.3f}",
-            "QPS": f"{qps:.2f}"
+            "QPS": f"{qps:.2f}",
+            "error_file": error_file  # 添加错误文件路径
         }
         
         # 输出测试结果到日志
