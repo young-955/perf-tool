@@ -235,7 +235,8 @@ async function startTest() {
 
             const response = await fetch('/api/test', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                credentials: 'same-origin'
             });
             
             if (!response.ok) {

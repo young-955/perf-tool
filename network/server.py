@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_file, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, session
 import os
 from werkzeug.utils import secure_filename
 from core.load_tester import LoadTester, save_comparison_results_to_csv, analyze_results
@@ -9,6 +9,11 @@ import traceback
 import time
 import asyncio
 import aiohttp
+from core.session_manager import SessionManager
+from core import ensure_directories
+
+# 创建会话管理器实例
+session_manager = SessionManager()
 
 # 设置正确的模板和静态文件路径
 app = Flask(__name__,
@@ -16,9 +21,18 @@ app = Flask(__name__,
     static_folder=os.path.join(os.path.dirname(__file__), 'static')
 )
 
+app.secret_key = os.urandom(24)
+
 # 设置上传文件夹路径
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'uploads')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+@app.before_request
+def check_session():
+    if request.endpoint != 'static':
+        session_id = session.get('test_session_id')
+        if not session_id or not session_manager.get_session(session_id):
+            session['test_session_id'] = session_manager.create_session()
 
 @app.route('/')
 def index():
@@ -40,11 +54,18 @@ def serve_results(filename):
 @app.route('/api/test', methods=['POST'])
 def run_test():
     try:
+        session_id = session.get('test_session_id')
+        test_session = session_manager.get_session(session_id)
+        if not test_session:
+            return jsonify({'error': '会话已过期'}), 401
+        
         # 从 FormData 中获取配置
         if 'config' not in request.form:
             return jsonify({'error': '缺少配置信息'}), 400
             
         config = json.loads(request.form['config'])
+        # 添加会话信息到配置中
+        config['session_dir'] = test_session.results_dir
         
         # 基本验证
         if not config.get('services'):
@@ -170,4 +191,5 @@ def get_latest_result_file():
     return os.path.join(results_dir, latest_file)
 
 if __name__ == '__main__':
+    ensure_directories()
     app.run(host="0.0.0.0", debug=True, port=5000)

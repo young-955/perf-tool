@@ -17,7 +17,8 @@ import cv2
 import numpy as np
 
 class LoadTester:
-    def __init__(self, name, url, request_type, request_body=None, image_path=None, headers=None, num_threads=10, num_requests=100):
+    def __init__(self, name, url, request_type, request_body, headers, num_threads, num_requests, session_dir=None, image_path=None):
+        self.session_dir = session_dir
         self.name = name
         self.url = url
         self.request_type = request_type
@@ -30,8 +31,8 @@ class LoadTester:
         self.failure_count = 0
         self.response_times = []
         self.lock = threading.Lock()
-        self.image_data = None  # 初始化 image_data 属性
-        
+        self.image_data = None
+
         # 如果是图片请求，预先加载图片
         if self.request_type == 'image' and self.image_path:
             try:
@@ -138,24 +139,26 @@ class LoadTester:
             
         return test_results
     
-def save_results_to_csv(all_results):
-    # 生成文件名，包含时间戳
+def save_results(self, results):
+    if not self.session_dir:
+        self.session_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'results')
+        os.makedirs(self.session_dir, exist_ok=True)
+    
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     filename = f"test_results_{timestamp}.csv"
-    
-    # 获取所有指标名称
-    metrics = list(all_results[0].keys())
+    filepath = os.path.join(self.session_dir, filename)
     
     # 写入CSV文件
-    with open(filename, 'w', newline='', encoding='utf-8') as f:
+    with open(filepath, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         # 写入表头
-        writer.writerow(['指标'] + [f'任务{i+1}' for i in range(len(all_results))])
+        writer.writerow(['指标', '值'])
         # 写入数据
-        for metric in metrics:
-            writer.writerow([metric] + [result[metric] for result in all_results])
+        for key, value in results.items():
+            writer.writerow([key, value])
     
-    logger.info(f"测试结果已保存到文件: {filename}")
+    logger.info(f"测试结果已保存到文件: {filepath}")
+    return filepath
 
 def load_config(config_file):
     with open(config_file, 'r', encoding='utf-8') as f:
