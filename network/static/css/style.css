@@ -177,3 +177,35 @@
 .download-buttons button:hover {
     background-color: #0056b3;
 }
+
+.related-tools {
+    margin-top: 40px;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.tool-card {
+    padding: 15px;
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.tool-card ul {
+    list-style-type: none;
+    padding-left: 0;
+}
+
+.tool-card li {
+    margin: 10px 0;
+}
+
+.tool-card a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.tool-card a:hover {
+    text-decoration: underline;
+}

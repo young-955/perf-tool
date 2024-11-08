@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, session
+from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, session, redirect
 import os
 from werkzeug.utils import secure_filename
 from core.load_tester import LoadTester, save_comparison_results_to_csv, analyze_results
@@ -201,7 +201,7 @@ def run_load_tests(config):
             # 每个测试之间暂停一段时间
             time.sleep(2)
         
-        # 将当前服务的结果添加到列表中
+        # 将当前服务的结果添加到列���中
         service_results_list.append({
             'name': service['name'],
             'results': service_results
@@ -265,6 +265,10 @@ def clear_results_directory():
             except Exception as e:
                 logger.error(f"删除文件失败 {file_path}: {str(e)}")
     logger.info("已清空 results 目录")
+
+@app.route('/json-validator')
+def redirect_to_json_validator():
+    return redirect('http://localhost:31007')
 
 if __name__ == '__main__':
     ensure_directories()

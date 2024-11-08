@@ -3,6 +3,31 @@
 <head>
     <title>性能测试工具</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .nav-bar {
+            background-color: #f8f9fa;
+            padding: 10px 20px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .nav-bar a {
+            color: #333;
+            text-decoration: none;
+            margin-right: 20px;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+
+        .nav-bar a:hover {
+            background-color: #e9ecef;
+        }
+
+        .nav-bar .current {
+            font-weight: bold;
+            color: #007bff;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -107,7 +132,18 @@
         </div>
     </div>
 
+    <div class="related-tools">
+        <h3>相关工具推荐</h3>
+        <div class="tool-card">
+            <h4>更多开发工具:</h4>
+            <ul>
+                <li><a href="/json-validator">JSON校验工具</a> - 在线JSON格式化与验证</li>
+            </ul>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
+
