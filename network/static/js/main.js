@@ -240,6 +240,10 @@ async function startTest() {
             });
             
             if (!response.ok) {
+                if (response.status === 666) {
+                    alert('请求失败，请检查压测配置及网络策略是否正常');
+                    return;
+                }
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             

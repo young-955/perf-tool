@@ -11,6 +11,7 @@ import asyncio
 import aiohttp
 from core.session_manager import SessionManager
 from core import ensure_directories
+import requests  # 确保导入requests库
 
 # 创建会话管理器实例
 session_manager = SessionManager()
@@ -119,6 +120,15 @@ def run_test():
         if not config.get('services'):
             return jsonify({'error': '没有配置服务'}), 400
             
+        # 检测目标地址的请求是否可以正常发送
+        for service in config['services']:
+            try:
+                response = requests.get(service['url'], timeout=5)  # 发送GET请求以检测可达性
+                if response.status_code != 200:
+                    return jsonify({'error': f'无法访问服务: {service["name"]}，状态码: {response.status_code}'}), 666
+            except requests.exceptions.RequestException as e:
+                return jsonify({'error': f'无法访问服务: {service["name"]}，错误信息: {str(e)}'}), 666
+
         # 处理上传的图片
         for service in config['services']:
             if service.get('request_type') == 'image' and service.get('image_path'):
@@ -201,7 +211,7 @@ def run_load_tests(config):
             # 每个测试之间暂停一段时间
             time.sleep(2)
         
-        # 将当前服务的结果添加到列���中
+        # 将当前服务的结果添加到列表中
         service_results_list.append({
             'name': service['name'],
             'results': service_results

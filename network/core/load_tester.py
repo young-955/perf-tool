@@ -15,6 +15,7 @@ from core.analyse_plt import analyze_results
 import io
 import cv2
 import numpy as np
+from core.utils import ImageCache
 
 class LoadTester:
     def __init__(self, name, url, request_type, request_body, headers, num_threads, num_requests, session_dir=None, image_path=None):
@@ -35,17 +36,14 @@ class LoadTester:
         self.failure_count = 0
         self.response_times = []
         self.lock = threading.Lock()
+        self.image_cache = ImageCache.get_instance()
         self.image_data = None
         self.error_records = []  # 添加错误记录列表
         self.error_lock = threading.Lock()  # 添加错误记录的锁
 
-        # 如果是图片请求，预先加载图片
+        # 如果是图片请求，从缓存获取图片数据
         if self.request_type == 'image' and self.image_path:
-            try:
-                self.image_data = self.prepare_image_data(self.image_path)
-            except Exception as e:
-                logger.error(f"加载图片失败: {str(e)}")
-                raise
+            self.image_data = self.image_cache.get_image_data(self.image_path)
         
     def record_error(self, status_code, error_response, request_info):
         """记录错误信息"""
@@ -74,18 +72,6 @@ class LoadTester:
         
         return filename
     
-    def prepare_image_data(self, image_path):
-        """预处理图片数据"""
-        rgb_img = cv2.imread(image_path)
-        if rgb_img is None:
-            raise ValueError(f"无法读取图片: {image_path}")
-        return self.cv2bytes(rgb_img)
-
-    def cv2bytes(self, im):
-        """cv2转二进制图片"""
-        return io.BytesIO(cv2.imencode('.png', im)[1]).getvalue()
-
-
     def generate_bizno(self):
         """生成随机的业务编号"""
         # 方法1：使用UUID
