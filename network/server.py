@@ -119,15 +119,6 @@ def run_test():
         # 基本验证
         if not config.get('services'):
             return jsonify({'error': '没有配置服务'}), 400
-            
-        # 检测目标地址的请求是否可以正常发送
-        for service in config['services']:
-            try:
-                response = requests.get(service['url'], timeout=5)  # 发送GET请求以检测可达性
-                if response.status_code != 200:
-                    return jsonify({'error': f'无法访问服务: {service["name"]}，状态码: {response.status_code}'}), 666
-            except requests.exceptions.RequestException as e:
-                return jsonify({'error': f'无法访问服务: {service["name"]}，错误信息: {str(e)}'}), 666
 
         # 处理上传的图片
         for service in config['services']:
@@ -142,6 +133,22 @@ def run_test():
                 else:
                     return jsonify({'error': f'未找到图片文件: {service["image_path"]}'}), 400
 
+        # 验证每个服务的可达性与可用性
+        for service in config['services']:
+            tester = LoadTester(
+                name=service['name'],
+                url=service['url'],
+                request_type=service.get('request_type', 'json'),
+                request_body=service.get('request_body'),
+                image_path=service.get('image_path'),
+                headers=service.get('headers'),                num_threads=1,  # 使用单线程进行验证
+                num_requests=1,  # 只发送一次请求进行验证
+                session_dir=config['session_dir']
+            )
+            response_status = tester.make_request()  # 调用make_request进行验证
+            if response_status is None or response_status != 200:
+                return jsonify({'error': f'无法访问服务: {service["name"]}，状态码: {response_status}'}), 666
+        
         # 运行测试
         results = run_load_tests(config)
         return jsonify(results)
